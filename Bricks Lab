@@ -1,0 +1,562 @@
+-- BRICK LABS | Control Center
+-- Roblox Studio LocalScript
+-- Place in StarterPlayer > StarterPlayerScripts
+
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local settings = {
+    AssistEnabled = false,
+    ShowFOV = true,
+    TeamCheck = false,
+    VisibleOnly = true,
+    FOV = 120,
+    Range = 150,
+    Smoothness = 50,
+    ToggleKey = Enum.KeyCode.RightShift,
+}
+
+local selectedTab = "Main"
+local menuOpen = true
+
+local PURPLE = Color3.fromRGB(151, 91, 255)
+local DARK = Color3.fromRGB(17, 14, 26)
+local PANEL = Color3.fromRGB(29, 23, 42)
+local MUTED = Color3.fromRGB(170, 156, 194)
+local WHITE = Color3.fromRGB(245, 240, 255)
+local GREEN = Color3.fromRGB(65, 220, 145)
+
+local function create(className, props, parent)
+    local object = Instance.new(className)
+    for property, value in pairs(props) do
+        object[property] = value
+    end
+    object.Parent = parent
+    return object
+end
+
+local function round(object, radius)
+    create("UICorner", {
+        CornerRadius = UDim.new(0, radius or 10)
+    }, object)
+end
+
+local gui = create("ScreenGui", {
+    Name = "BrickLabsControlCenter",
+    ResetOnSpawn = false,
+    DisplayOrder = 20,
+}, playerGui)
+
+-- Main window
+local window = create("Frame", {
+    Name = "Window",
+    Size = UDim2.fromOffset(560, 430),
+    Position = UDim2.new(0.5, -280, 0.5, -215),
+    BackgroundColor3 = DARK,
+    BorderSizePixel = 0,
+}, gui)
+round(window, 16)
+
+create("UIStroke", {
+    Color = Color3.fromRGB(86, 57, 126),
+    Thickness = 1.5,
+}, window)
+
+-- Header
+local header = create("Frame", {
+    Size = UDim2.new(1, 0, 0, 66),
+    BackgroundColor3 = PANEL,
+    BorderSizePixel = 0,
+}, window)
+round(header, 16)
+
+create("Frame", {
+    Size = UDim2.new(1, 0, 0, 16),
+    Position = UDim2.new(0, 0, 1, -16),
+    BackgroundColor3 = PANEL,
+    BorderSizePixel = 0,
+}, header)
+
+local logo = create("Frame", {
+    Size = UDim2.fromOffset(38, 38),
+    Position = UDim2.fromOffset(16, 14),
+    BackgroundColor3 = PURPLE,
+    BorderSizePixel = 0,
+}, header)
+round(logo, 11)
+
+create("TextLabel", {
+    Size = UDim2.fromScale(1, 1),
+    BackgroundTransparency = 1,
+    Text = "B",
+    TextColor3 = WHITE,
+    Font = Enum.Font.GothamBlack,
+    TextSize = 24,
+}, logo)
+
+create("TextLabel", {
+    Position = UDim2.fromOffset(66, 13),
+    Size = UDim2.fromOffset(250, 24),
+    BackgroundTransparency = 1,
+    Text = "BRICK LABS",
+    TextColor3 = WHITE,
+    TextSize = 19,
+    Font = Enum.Font.GothamBold,
+    TextXAlignment = Enum.TextXAlignment.Left,
+}, header)
+
+create("TextLabel", {
+    Position = UDim2.fromOffset(67, 36),
+    Size = UDim2.fromOffset(260, 17),
+    BackgroundTransparency = 1,
+    Text = "PLAYER CONTROL CENTER",
+    TextColor3 = MUTED,
+    TextSize = 10,
+    Font = Enum.Font.GothamMedium,
+    TextXAlignment = Enum.TextXAlignment.Left,
+}, header)
+
+local status = create("TextLabel", {
+    Position = UDim2.new(1, -126, 0, 19),
+    Size = UDim2.fromOffset(76, 26),
+    BackgroundColor3 = Color3.fromRGB(43, 34, 57),
+    Text = "STUDIO",
+    TextColor3 = GREEN,
+    TextSize = 11,
+    Font = Enum.Font.GothamBold,
+}, header)
+round(status, 8)
+
+local close = create("TextButton", {
+    Position = UDim2.new(1, -42, 0, 17),
+    Size = UDim2.fromOffset(27, 30),
+    BackgroundColor3 = Color3.fromRGB(70, 43, 85),
+    Text = "×",
+    TextColor3 = WHITE,
+    TextSize = 22,
+    Font = Enum.Font.Gotham,
+}, header)
+round(close, 8)
+
+-- Sidebar
+local sidebar = create("Frame", {
+    Position = UDim2.fromOffset(12, 78),
+    Size = UDim2.new(0, 142, 1, -90),
+    BackgroundColor3 = PANEL,
+    BorderSizePixel = 0,
+}, window)
+round(sidebar, 12)
+
+local content = create("ScrollingFrame", {
+    Position = UDim2.fromOffset(166, 78),
+    Size = UDim2.new(1, -178, 1, -90),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    ScrollBarThickness = 4,
+    ScrollBarImageColor3 = PURPLE,
+    CanvasSize = UDim2.new(),
+    AutomaticCanvasSize = Enum.AutomaticSize.Y,
+}, window)
+
+create("UIPadding", {
+    PaddingBottom = UDim.new(0, 12),
+    PaddingRight = UDim.new(0, 5),
+}, content)
+
+create("UIListLayout", {
+    Padding = UDim.new(0, 10),
+    SortOrder = Enum.SortOrder.LayoutOrder,
+}, content)
+
+local tabButtons = {}
+local tabNames = {"Main", "Visuals", "Settings"}
+
+local function clearContent()
+    for _, child in ipairs(content:GetChildren()) do
+        if child:IsA("GuiObject") then
+            child:Destroy()
+        end
+    end
+end
+
+local function section(text)
+    return create("TextLabel", {
+        Size = UDim2.new(1, -4, 0, 25),
+        BackgroundTransparency = 1,
+        Text = string.upper(text),
+        TextColor3 = PURPLE,
+        Font = Enum.Font.GothamBold,
+        TextSize = 12,
+        TextXAlignment = Enum.TextXAlignment.Left,
+    }, content)
+end
+
+local function card(height)
+    local frame = create("Frame", {
+        Size = UDim2.new(1, -4, 0, height),
+        BackgroundColor3 = PANEL,
+        BorderSizePixel = 0,
+    }, content)
+    round(frame, 11)
+    return frame
+end
+
+local function label(parent, text, position, size, textSize, color)
+    return create("TextLabel", {
+        Position = position,
+        Size = size,
+        BackgroundTransparency = 1,
+        Text = text,
+        TextColor3 = color or WHITE,
+        Font = Enum.Font.GothamMedium,
+        TextSize = textSize or 13,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextWrapped = true,
+    }, parent)
+end
+
+local function makeToggle(parent, title, description, initial, callback)
+    local frame = card(66)
+    label(frame, title, UDim2.fromOffset(12, 9),
+        UDim2.new(1, -80, 0, 20), 13)
+    label(frame, description, UDim2.fromOffset(12, 32),
+        UDim2.new(1, -85, 0, 23), 10, MUTED)
+
+    local switch = create("TextButton", {
+        Position = UDim2.new(1, -57, 0, 20),
+        Size = UDim2.fromOffset(44, 25),
+        BackgroundColor3 = initial and PURPLE
+            or Color3.fromRGB(64, 56, 76),
+        Text = initial and "ON" or "OFF",
+        TextColor3 = WHITE,
+        Font = Enum.Font.GothamBold,
+        TextSize = 10,
+    }, frame)
+    round(switch, 8)
+
+    local value = initial
+    switch.Activated:Connect(function()
+        value = not value
+        switch.Text = value and "ON" or "OFF"
+        switch.BackgroundColor3 = value and PURPLE
+            or Color3.fromRGB(64, 56, 76)
+        callback(value)
+    end)
+    return switch
+end
+
+local function makeSlider(title, minimum, maximum, initial, callback)
+    local frame = card(78)
+    local valueLabel = label(frame, "", UDim2.new(1, -75, 0, 10),
+        UDim2.fromOffset(62, 20), 12, PURPLE)
+    valueLabel.TextXAlignment = Enum.TextXAlignment.Right
+
+    label(frame, title, UDim2.fromOffset(12, 10),
+        UDim2.new(1, -95, 0, 20), 13)
+
+    local track = create("TextButton", {
+        Position = UDim2.new(0, 12, 0, 46),
+        Size = UDim2.new(1, -24, 0, 8),
+        BackgroundColor3 = Color3.fromRGB(63, 52, 79),
+        Text = "",
+        AutoButtonColor = false,
+    }, frame)
+    round(track, 6)
+
+    local fill = create("Frame", {
+        Size = UDim2.new((initial-minimum)/(maximum-minimum), 0, 1, 0),
+        BackgroundColor3 = PURPLE,
+        BorderSizePixel = 0,
+    }, track)
+    round(fill, 6)
+
+    local knob = create("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new((initial-minimum)/(maximum-minimum), 0, 0.5, 0),
+        Size = UDim2.fromOffset(15, 15),
+        BackgroundColor3 = WHITE,
+        BorderSizePixel = 0,
+    }, track)
+    round(knob, 8)
+
+    local value = initial
+    local function updateFromX(x)
+        local fraction = math.clamp(
+            (x - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
+        value = math.floor(minimum + fraction * (maximum-minimum) + 0.5)
+        fill.Size = UDim2.new(fraction, 0, 1, 0)
+        knob.Position = UDim2.new(fraction, 0, 0.5, 0)
+        valueLabel.Text = tostring(value)
+        callback(value)
+    end
+
+    local dragging = false
+    track.Activated:Connect(function()
+        updateFromX(UIS:GetMouseLocation().X)
+    end)
+    track.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            updateFromX(input.Position.X)
+        end
+    end)
+    UIS.InputChanged:Connect(function(input)
+        if dragging and (
+            input.UserInputType == Enum.UserInputType.MouseMovement
+            or input.UserInputType == Enum.UserInputType.Touch
+        ) then
+            updateFromX(input.Position.X)
+        end
+    end)
+    UIS.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+
+    valueLabel.Text = tostring(initial)
+end
+
+local function buildTab(tab)
+    selectedTab = tab
+    clearContent()
+
+    for name, button in pairs(tabButtons) do
+        button.BackgroundColor3 = name == tab
+            and Color3.fromRGB(77, 49, 111)
+            or PANEL
+    end
+
+    if tab == "Main" then
+        section("Overview")
+
+        local summary = card(76)
+        label(summary, "Camera assist settings",
+            UDim2.fromOffset(12, 10), UDim2.new(1, -24, 0, 22), 15)
+        label(summary, "Configure the visual controls for your experience.",
+            UDim2.fromOffset(12, 37), UDim2.new(1, -24, 0, 25), 11, MUTED)
+
+        makeToggle(content, "Camera assist",
+            "Master toggle for your game's camera mechanic",
+            settings.AssistEnabled, function(v)
+                settings.AssistEnabled = v
+            end)
+
+        section("Target preferences")
+        makeSlider("Maximum range (studs)", 25, 300, settings.Range,
+            function(v) settings.Range = v end)
+
+        makeSlider("Camera smoothness", 1, 100, settings.Smoothness,
+            function(v) settings.Smoothness = v end)
+
+        makeToggle(content, "Team filter",
+            "Exclude players on your team",
+            settings.TeamCheck, function(v)
+                settings.TeamCheck = v
+            end)
+
+    elseif tab == "Visuals" then
+        section("Visual options")
+
+        makeToggle(content, "FOV circle",
+            "Show the camera field-of-view indicator",
+            settings.ShowFOV, function(v)
+                settings.ShowFOV = v
+            end)
+
+        makeSlider("FOV radius (pixels)", 40, 350, settings.FOV,
+            function(v) settings.FOV = v end)
+
+        makeToggle(content, "Visibility indicator",
+            "Enable visibility display in your game UI",
+            settings.VisibleOnly, function(v)
+                settings.VisibleOnly = v
+            end)
+
+        section("Target HUD")
+        local hud = card(90)
+        label(hud, "TARGET STATUS", UDim2.fromOffset(12, 12),
+            UDim2.new(1, -24, 0, 20), 12, PURPLE)
+        label(hud, "No target selected",
+            UDim2.fromOffset(12, 39), UDim2.new(1, -24, 0, 24), 14)
+        label(hud, "Connect this panel to your game's target system.",
+            UDim2.fromOffset(12, 65), UDim2.new(1, -24, 0, 18), 10, MUTED)
+
+    elseif tab == "Settings" then
+        section("Interface")
+        makeToggle(content, "Open menu on start",
+            "Display the control panel when you spawn",
+            menuOpen, function(v)
+                menuOpen = v
+                window.Visible = v
+            end)
+
+        local keyCard = card(78)
+        label(keyCard, "Menu keybind",
+            UDim2.fromOffset(12, 12), UDim2.new(1, -24, 0, 22), 13)
+        local keyButton = create("TextButton", {
+            Position = UDim2.fromOffset(12, 42),
+            Size = UDim2.new(1, -24, 0, 25),
+            BackgroundColor3 = Color3.fromRGB(75, 52, 102),
+            Text = settings.ToggleKey.Name .. "  ·  Click to change",
+            TextColor3 = WHITE,
+            Font = Enum.Font.GothamMedium,
+            TextSize = 11,
+        }, keyCard)
+        round(keyButton, 7)
+
+        keyButton.Activated:Connect(function()
+            keyButton.Text = "Press a keyboard key..."
+            local connection
+            connection = UIS.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.Keyboard
+                    and input.KeyCode ~= Enum.KeyCode.Unknown then
+                    settings.ToggleKey = input.KeyCode
+                    keyButton.Text = input.KeyCode.Name .. "  ·  Click to change"
+                    connection:Disconnect()
+                end
+            end)
+        end)
+
+        local reset = create("TextButton", {
+            Size = UDim2.new(1, -4, 0, 42),
+            BackgroundColor3 = Color3.fromRGB(85, 45, 103),
+            Text = "RESET DEFAULT SETTINGS",
+            TextColor3 = WHITE,
+            Font = Enum.Font.GothamBold,
+            TextSize = 12,
+        }, content)
+        round(reset, 10)
+
+        reset.Activated:Connect(function()
+            settings.Range = 150
+            settings.Smoothness = 50
+            settings.FOV = 120
+            settings.ShowFOV = true
+            settings.TeamCheck = false
+            settings.VisibleOnly = true
+            settings.AssistEnabled = false
+            settings.ToggleKey = Enum.KeyCode.RightShift
+            buildTab("Settings")
+        end)
+    end
+end
+
+for index, name in ipairs(tabNames) do
+    local button = create("TextButton", {
+        Position = UDim2.fromOffset(8, 12 + (index-1)*48),
+        Size = UDim2.new(1, -16, 0, 39),
+        BackgroundColor3 = PANEL,
+        Text = "   " .. name,
+        TextColor3 = WHITE,
+        TextSize = 13,
+        Font = Enum.Font.GothamMedium,
+        TextXAlignment = Enum.TextXAlignment.Left,
+    }, sidebar)
+    round(button, 9)
+    tabButtons[name] = button
+    button.Activated:Connect(function()
+        buildTab(name)
+    end)
+end
+
+-- FOV circle: visual indicator only
+local circle = create("Frame", {
+    Name = "FOVCircle",
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    Position = UDim2.fromScale(0.5, 0.5),
+    Size = UDim2.fromOffset(settings.FOV*2, settings.FOV*2),
+    BackgroundTransparency = 1,
+    Visible = settings.ShowFOV,
+}, gui)
+round(circle, 500)
+
+create("UIStroke", {
+    Color = PURPLE,
+    Thickness = 1.5,
+    Transparency = 0.15,
+}, circle)
+
+-- Mobile buttons
+local mobileMenu = create("TextButton", {
+    Name = "MobileMenu",
+    AnchorPoint = Vector2.new(1, 1),
+    Position = UDim2.new(1, -15, 1, -15),
+    Size = UDim2.fromOffset(125, 44),
+    BackgroundColor3 = PURPLE,
+    Text = "BRICK LABS",
+    TextColor3 = WHITE,
+    TextSize = 13,
+    Font = Enum.Font.GothamBold,
+    Visible = UIS.TouchEnabled,
+}, gui)
+round(mobileMenu, 12)
+
+mobileMenu.Activated:Connect(function()
+    menuOpen = not menuOpen
+    window.Visible = menuOpen
+end)
+
+close.Activated:Connect(function()
+    menuOpen = false
+    window.Visible = false
+end)
+
+UIS.InputBegan:Connect(function(input, processed)
+    if processed then return end
+    if input.KeyCode == settings.ToggleKey then
+        menuOpen = not menuOpen
+        window.Visible = menuOpen
+    end
+end)
+
+-- Drag by the header
+local dragging = false
+local dragInput, dragStart, startPos
+
+header.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = window.Position
+        dragInput = input
+    end
+end)
+
+UIS.InputChanged:Connect(function(input)
+    if dragging and (
+        input.UserInputType == Enum.UserInputType.MouseMovement
+        or input.UserInputType == Enum.UserInputType.Touch
+    ) then
+        local delta = input.Position - dragStart
+        window.Position = UDim2.new(
+            startPos.X.Scale, startPos.X.Offset + delta.X,
+            startPos.Y.Scale, startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+UIS.InputEnded:Connect(function(input)
+    if input == dragInput
+        or input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+local function refreshVisuals()
+    circle.Size = UDim2.fromOffset(settings.FOV*2, settings.FOV*2)
+    circle.Visible = settings.ShowFOV
+end
+
+RunService.RenderStepped:Connect(refreshVisuals)
+
+buildTab("Main")
+print("BRICK LABS Control Center loaded")
